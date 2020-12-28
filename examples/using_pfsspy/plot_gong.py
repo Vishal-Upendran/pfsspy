@@ -11,6 +11,7 @@ import astropy.constants as const
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolor
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import sunpy.map
@@ -68,6 +69,12 @@ set_axes_lims(ax)
 # Now calculate the PFSS solution, and plot the polarity inversion line.
 output = pfsspy.pfss(input)
 # output.plot_pil(ax)
+
+cube = output._ndcube
+ax = cube.plot(cmap='RdBu', plot_axes=['y', 'x', None], norm=mcolor.SymLogNorm(vmin=-100, vmax=100, linthresh=1, base=10), colorbar=True)
+plt.show()
+print(cube.array_axis_physical_types)
+exit()
 
 
 ###############################################################################

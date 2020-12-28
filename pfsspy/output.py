@@ -3,6 +3,7 @@ import warnings
 
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+import astropy.wcs
 import numpy as np
 import sunpy.map
 
@@ -93,9 +94,33 @@ class Output:
             file, alr=self._alr, als=self._als, alp=self._alp,
             rss=np.array([self.grid.rss]))
 
-    def _wcs_header(self):
+    @property
+    def _wcs(self):
         """
-        Construct a world coordinate system describing the pfsspy solution.
+        Full 3D WCS for the output magnetic field solution.
+        """
+        wcs_2d = self._lon_lat_wcs_header()
+        wcs = astropy.wcs.WCS(naxis=3)
+        wcs.wcs.ctype = (*wcs_2d.wcs.ctype, 'HECR-LOG')
+        wcs.wcs.cunit = (*wcs_2d.wcs.cunit, 'm')
+        wcs.wcs.cdelt = (*wcs_2d.wcs.cdelt, 0.2)
+        wcs.wcs.crpix = (*wcs_2d.wcs.crpix, 0)
+        wcs.wcs.crval = (*wcs_2d.wcs.crval, 1)
+        return wcs
+
+    @property
+    def _ndcube(self):
+        from ndcube import NDCube
+        # Just get the radial component for now
+        data = self.bg[..., 2]
+        # Scale to r**2
+        data = data * (10**self.grid.rg)**2
+        return NDCube(data.T, self._wcs)
+
+    def _lon_lat_wcs_header(self):
+        """
+        Construct a world coordinate system describing the longitude/latitude
+        component of the pfsspy solution.
         """
         return self.input_map.wcs
 
@@ -153,7 +178,7 @@ class Output:
         # Get radial component at the top
         br = self.bc[0][:, :, -1]
         # Remove extra ghost cells off the edge of the grid
-        m = sunpy.map.Map((br.T, self._wcs_header()))
+        m = sunpy.map.Map((br.T, self._lon_lat_wcs_header()))
         vlim = np.max(np.abs(br))
         m.plot_settings['cmap'] = _MAG_CMAP
         m.plot_settings['vmin'] = -vlim
